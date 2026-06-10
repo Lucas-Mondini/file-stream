@@ -17,6 +17,7 @@ class Uploader {
   chunk_size = 0;
   xhr;
   counter = 0;
+  socket = undefined;
 
   constructor(reference) {
     this.reference = reference;
@@ -24,6 +25,25 @@ class Uploader {
     this.uploadButton = this.reference.querySelector(".js-upload");
     this.bindInputFile();
     this.bindUploadButton();
+    this.initSocket()
+  }
+
+  initSocket() {
+    this.socket = io("http://localhost:8080/")
+    let user_id = localStorage.getItem("user_id")
+    if (!user_id) {
+      this.socket.emit("generate_id")
+    } else {
+      this.socket.emit("reconnect", user_id)
+    }
+
+    this.socket.on("user_id", (user_id) => {
+      localStorage.setItem("user_id", user_id)
+    })
+
+    this.socket.on("no_user", () => {
+      this.socket.emit("reconnect", user_id)
+    })
   }
 
   bindInputFile() {
@@ -60,21 +80,38 @@ class Uploader {
   sendRequest() {
     const blob = this.inputFile.files[0];
     // blob = new Blob(blob_1, {type: 'video/mp4'});
-    this.BYTES_PER_CHUNK = 10485760; // 10MB chunk sizes.
+    this.BYTES_PER_CHUNK = 10 * 1024 * 8; // 10MB chunk sizes.
     this.SIZE = blob.size;
     this.start = 0;
     this.end = this.BYTES_PER_CHUNK;
     this.part = 0;
     this.NUM_CHUNKS = Math.max(Math.ceil(this.SIZE / this.BYTES_PER_CHUNK), 1);
 
-    while (this.start < this.SIZE) {
-      const chunk = blob.slice(this.start, this.end);
-      uploadFile(chunk, this.part);
-      this.start = this.end;
-      this.end = this.start + this.BYTES_PER_CHUNK;
-      this.part++;
-      this.counter++;
-    }
+
+
+    // while (this.start < this.SIZE) {
+    //   const chunk = blob.slice(this.start, this.end);
+    //   this.socket.emit("metadata", JSON.stringify({ filename: blob.name, size: this.SIZE, chunk_count: NUM_CHUNKS }))
+    //   this.uploadFile(chunk, this.part);
+    //   this.start = this.end;
+    //   this.end = this.start + this.BYTES_PER_CHUNK;
+    //   this.part++;
+    //   this.counter++;
+    // }
+    this.sendChunk(blob)
+    this.socket.on("chunk:ok", ()=> {this.sendChunk(blob)})
+  }
+
+  async sendChunk(blob) {
+    const chunk = blob.slice(this.start, this.end);
+    const chunk_text = await chunk.text()
+    this.socket.emit("metadata", JSON.stringify({ filename: blob.name, size: this.SIZE, chunk_count: this.NUM_CHUNKS }))
+    //this.uploadFile(chunk, this.part);
+    this.socket.emit("chunk", chunk_text)
+    this.start = this.end;
+    this.end = this.start + this.BYTES_PER_CHUNK;
+    this.part++;
+    this.counter++;
   }
 
   uploadFile(blobFile, part) {
@@ -88,13 +125,13 @@ class Uploader {
     this.xhr.open(
       "POST",
       "uploadhandler.php" +
-        "?" +
-        "filen=" +
-        file.name +
-        "&num=" +
-        part +
-        "&counter=" +
-        this.counter,
+      "?" +
+      "filen=" +
+      file.name +
+      "&num=" +
+      part +
+      "&counter=" +
+      this.counter,
     );
 
     this.xhr.addEventListener("load", this.uploadComplete, false);
@@ -134,15 +171,15 @@ class Uploader {
     document.getElementById("msgStatus").innerHTML = evt.target.responseText;
   }
 
-    uploadFailed(evt) {
-      alert("There was an error attempting to upload the file.");
-    }
+  uploadFailed(evt) {
+    alert("There was an error attempting to upload the file.");
+  }
 
-    uploadCanceled(evt) {
-      this.xhr.abort();
-      this.xhr = null;
-      //alert("The upload has been canceled by the user or the browser dropped the connection.");
-    }
+  uploadCanceled(evt) {
+    this.xhr.abort();
+    this.xhr = null;
+    //alert("The upload has been canceled by the user or the browser dropped the connection.");
+  }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
