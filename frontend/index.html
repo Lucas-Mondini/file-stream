@@ -1,22 +1,23 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
+    <link rel="stylesheet" href="/frontend/css/style.css">
 </head>
 <body>
-    <form id="form1" enctype="multipart/form-data" method="post" action="">
+    <form id="form1" enctype="multipart/form-data" method="post" action="" class="form">
         <div class="row">
-            <label for="fileToUpload">Select a File to Upload</label><br />
+            <label for="fileToUpload">Selecione um arquivo para upload</label><br />
             <input type="file" name="fileToUpload" id="fileToUpload" />
-            <input type="button" value="cancel" onClick="uploadCanceled();" />
         </div>
         <div id="fileName"></div>
         <div id="fileSize"></div>
         <div id="fileType"></div>
-        <div class="row">
-            <input type="button" class="js-upload" value="Upload" />
+        <div class="row buttons">
+            <button type="button" class="js-upload" disabled>Enviar</button>
+            <button type="button" class="js-cancel" disabled>Cancelar</button>
         </div>
         <div id="progressNumber"></div>
     </form>
